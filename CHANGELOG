@@ -3,6 +3,7 @@ Next version (not yet released)
 
  * Improve curl check for passenger-install- scripts to catch (very old) curl versions that won't compile against 5.1+.
  * Fixes remaining false positives (logging) from the new Meteor cluster warning system. Closes GH-1905.
+ * Allow prespawn to start app when address bound to non-localhost ip.
 
 
 Release 5.1.1
