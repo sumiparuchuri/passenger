@@ -1,6 +1,7 @@
 Next version (not yet released)
 -------------------------------
 
+ * Fixes an issue with quoted paths in Python wsgi apps. Closes GH-1828.
 
 
 
