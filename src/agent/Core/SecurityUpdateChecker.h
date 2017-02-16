@@ -328,7 +328,7 @@ public:
 				P_DEBUG(string("Old default keychain is: ") + pathName);
 			}
 		}
-		// we don't care so much about which user we are, what we care about is is they have their own keychain, if the default keychain is the system keychain, then we need to try and create our own to avoid permissions issues
+		// we don't care so much about which user we are (except root), what we care about is is they have their own keychain, if the default keychain is the system keychain, then we need to try and create our own to avoid permissions issues
 		if (strcmp(pathName, "/Library/Keychains/System.keychain") == 0) {
 			usingPassengerKeychain = true;
 			const uint size = 512;
@@ -347,6 +347,9 @@ public:
 						keychainDir = string(currentPath);
 					}
 				}
+				keychainDir += "/keychain";
+				mkdir(keychainDir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+				P_DEBUG(string("keychainDir = ") + keychainDir + "/passenger.keychain");
 				// create keychain with long random password, then discard password after creation. We receive the keychain unlocked, and no-one else needs to access the keychain.
 				status = SecKeychainCreate((keychainDir + "/passenger.keychain").c_str(), size, keychainPassword, false, NULL, &keychain);
 				memset(keychainPassword, 0, size);
@@ -358,6 +361,51 @@ public:
 					CFRelease(str);
 					usingPassengerKeychain = false;
 				} else {
+					if (geteuid() == 0) {
+						struct passwd *pwUser = getpwnam("_www");
+
+						if (pwUser == NULL) {
+							throw RuntimeException("Cannot lookup user information for user _www");
+						}
+
+						gid_t gid = pwUser->pw_gid;
+						string groupName = getGroupName(pwUser->pw_gid);
+						chown(keychainDir.c_str(),pwUser->pw_uid,gid);
+						char pathName2 [PATH_MAX];
+						UInt32 length2 = PATH_MAX;
+						status = SecKeychainGetPath(keychain, &length2, pathName2);
+						if (status) {
+							CFStringRef str = SecCopyErrorMessageString(status, NULL);
+							P_ERROR(string("Checking default keychain path failed: ") +
+									CFStringGetCStringPtr(str, kCFStringEncodingUTF8) +
+									" Passenger may use system keychain.");
+							CFRelease(str);
+						} else {
+							chown(pathName2,pwUser->pw_uid,gid);
+						}
+						if (initgroups("_www", gid) != 0) {
+							int e = errno;
+							throw SystemException("Unable to lower " SHORT_PROGRAM_NAME " watchdog's privilege "
+												  "to that of user _www and group '" + groupName +
+												  "': cannot set supplementary groups", e);
+						}
+						if (setgid(gid) != 0) {
+							int e = errno;
+							throw SystemException("Unable to lower " SHORT_PROGRAM_NAME " watchdog's privilege "
+												  "to that of user _www and group '" + groupName +
+												  "': cannot set group ID to " + toString(gid), e);
+						}
+						if (setuid(pwUser->pw_uid) != 0) {
+							int e = errno;
+							throw SystemException("Unable to lower " SHORT_PROGRAM_NAME " watchdog's privilege "
+												  "to that of user _www and group '" + groupName +
+												  "': cannot set user ID to " + toString(pwUser->pw_uid), e);
+						}
+						setenv("USER", pwUser->pw_name, 1);
+						//setenv("HOME", pwUser->pw_dir, 1);
+						setenv("HOME", keychainDir.c_str(), 1);
+						setenv("UID", toString(gid).c_str(), 1);
+					}
 					// set keychain as default so libcurl uses it.
 					status = SecKeychainSetDefault(keychain);
 					if (status) {
@@ -374,6 +422,8 @@ public:
 					}
 				}
 			}
+		} else {
+			P_DEBUG(string("default keychain is: '") + pathName + "'");
 		}
 #else
 		clientCertPath = locator.getResourcesDir() + "/update_check_client_cert.pem";
@@ -407,8 +457,9 @@ public:
 			if (defaultKeychain) {
 				status = SecKeychainSetDefault(defaultKeychain);
 				if (status) {
+					// An error here isn't a huge problem because we delete the temporary keychain anyway which should reset the default
 					CFStringRef str = SecCopyErrorMessageString(status, NULL);
-					P_ERROR(string("Restoring default keychain failed: ") +
+					P_DEBUG(string("Restoring default keychain failed: ") +
 							CFStringGetCStringPtr(str, kCFStringEncodingUTF8));
 					CFRelease(str);
 				}

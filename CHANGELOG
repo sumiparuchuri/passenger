@@ -3,6 +3,7 @@ Next version (not yet released)
 
  * [Standalone] Fixes `install-standalone-runtime` command after regression in 5.1.2.
  * Removes unnecessary logging of "No Error" from macOS Security Update Checker.
+ * Avoid running the Security Update Checker as root on macOS, in order to avoid modifying the default System Keychain. Closes GH-1922.
 
 
 Release 5.1.2
