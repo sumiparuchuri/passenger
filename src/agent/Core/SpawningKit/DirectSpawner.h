@@ -126,7 +126,11 @@ private:
 		if (shouldLoadShellEnvvars(options, preparation)) {
 			command.push_back(preparation.userSwitching.shell);
 			command.push_back(preparation.userSwitching.shell);
-			command.push_back("-lc");
+			if (Passenger::getLogLevel() >= PassengerLogLevel::LVL_DEBUG3) {
+				command.push_back("-lxc");
+			} else {
+				command.push_back("-lc");
+			}
 			command.push_back("exec \"$@\"");
 			command.push_back("SpawnPreparerShell");
 		} else {
