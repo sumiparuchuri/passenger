@@ -47,7 +47,8 @@ using namespace oxt;
 
 #if BOOST_OS_MACOS
 
-Crypto::Crypto() {
+Crypto::Crypto()
+	:id(NULL) {
 }
 
 Crypto::~Crypto() {
@@ -139,6 +140,9 @@ OSStatus Crypto::copyIdentityFromPKCS12File(const char *cPath,
 			logError( prefix + ": " + CFStringGetCStringPtr(str, kCFStringEncodingUTF8) + "\n" + suffix );
 			CFRelease(str);
 		}
+	}else{
+	  id = (CFDataRef)CFDictionaryGetValue((CFDictionaryRef)CFArrayGetValueAtIndex(items, 0),kSecImportItemKeyID);
+	  CFRetain(id);
 	}
 
 	if (items) {
@@ -165,7 +169,7 @@ void Crypto::killKey(const char *cLabel) {
 
 		CFArrayRef itemList = CFArrayCreate(NULL, (const void **) &id, 1, NULL);
 		CFTypeRef keys[]   = { kSecClass,  kSecMatchItemList,  kSecMatchLimit };
-		CFTypeRef values[] = { kSecClassIdentity, itemList, kSecMatchLimitAll };
+		CFTypeRef values[] = { kSecClassCertificate, itemList, kSecMatchLimitOne };
 
 		CFDictionaryRef dict = CFDictionaryCreate(NULL, keys, values, 3L, NULL, NULL);
 		OSStatus oserr = SecItemDelete(dict);
@@ -177,6 +181,23 @@ void Crypto::killKey(const char *cLabel) {
 		}
 		CFRelease(dict);
 		CFRelease(itemList);
+
+		if(id){
+			CFTypeRef keys2[]   = { kSecClass,  kSecAttrSubjectKeyID,  kSecMatchLimit };
+			CFTypeRef values2[] = { kSecClassKey, id, kSecMatchLimitOne };
+			dict = CFDictionaryCreate(NULL, keys2, values2, 3L, NULL, NULL);
+			oserr = SecItemDelete(dict);
+			if (oserr) {
+				CFStringRef str = SecCopyErrorMessageString(oserr, NULL);
+				logError(string("Removing Passenger Cert from keychain failed: ") + CFStringGetCStringPtr(str, kCFStringEncodingUTF8) +
+						 " Please remove the private key from the certificate labeled " + cLabel + " in your keychain.");
+				CFRelease(str);
+			}
+			CFRelease(dict);
+			CFRelease(id);
+			id = NULL;
+		}
+
 	} else {
 		CFStringRef str = SecCopyErrorMessageString(status, NULL);
 		logError(string("Finding Passenger Cert failed: ") + CFStringGetCStringPtr(str, kCFStringEncodingUTF8) );
