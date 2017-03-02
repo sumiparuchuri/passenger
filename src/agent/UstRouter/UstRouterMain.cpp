@@ -321,6 +321,7 @@ initializeUnprivilegedWorkingObjects() {
 		wo->apiServer->fdPassingPassword = options.get("watchdog_fd_passing_password", false);
 		wo->apiServer->exitEvent = &wo->exitEvent;
 		wo->apiServer->shutdownFinishCallback = apiServerShutdownFinished;
+		wo->apiServer->initialize();
 		foreach (fd, wo->apiSockets) {
 			wo->apiServer->listen(fd);
 		}

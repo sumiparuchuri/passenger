@@ -736,6 +736,7 @@ initializeNonPrivilegedWorkingObjects() {
 		awo->apiServer->fdPassingPassword = options.get("watchdog_fd_passing_password", false);
 		awo->apiServer->exitEvent = &wo->exitEvent;
 		awo->apiServer->shutdownFinishCallback = apiServerShutdownFinished;
+		awo->apiServer->initialize();
 
 		wo->shutdownCounter.fetch_add(1, boost::memory_order_relaxed);
 	}

@@ -1159,6 +1159,7 @@ initializeApiServer(const WorkingObjectsPtr &wo) {
 	wo->apiServer->apiAccountDatabase = &wo->apiAccountDatabase;
 	wo->apiServer->exitEvent = &wo->exitEvent;
 	wo->apiServer->fdPassingPassword = options.get("watchdog_fd_passing_password");
+	wo->apiServer->initialize();
 	for (unsigned int i = 0; i < apiAddresses.size(); i++) {
 		wo->apiServer->listen(wo->apiServerFds[i]);
 	}

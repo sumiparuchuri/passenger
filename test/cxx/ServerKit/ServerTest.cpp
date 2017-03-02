@@ -23,6 +23,7 @@ namespace tut {
 
 		BackgroundEventLoop bg;
 		ServerKit::Context context;
+		ServerKit::BaseServerSchema schema;
 		boost::shared_ptr< Server<Client> > server;
 		int serverSocket1, serverSocket2;
 
@@ -33,7 +34,8 @@ namespace tut {
 			setLogLevel(LVL_CRIT);
 			serverSocket1 = createUnixServer("tmp.server1");
 			serverSocket2 = createUnixServer("tmp.server2");
-			server = boost::make_shared< Server<Client> >(&context);
+			server = boost::make_shared< Server<Client> >(&context, schema);
+			server->initialize();
 			server->listen(serverSocket1);
 		}
 
@@ -142,7 +144,8 @@ namespace tut {
 
 	#define USE_CUSTOM_SERVER_CLASS(Klass) \
 		server->shutdown(); \
-		server = boost::make_shared< Klass >(&context); \
+		server = boost::make_shared< Klass >(&context, schema); \
+		server->initialize(); \
 		server->listen(serverSocket1)
 
 

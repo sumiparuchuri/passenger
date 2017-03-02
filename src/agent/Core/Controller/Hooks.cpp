@@ -1,6 +1,6 @@
 /*
  *  Phusion Passenger - https://www.phusionpassenger.com/
- *  Copyright (c) 2011-2016 Phusion Holding B.V.
+ *  Copyright (c) 2011-2017 Phusion Holding B.V.
  *
  *  "Passenger", "Phusion Passenger" and "Union Station" are registered
  *  trademarks of Phusion Holding B.V.
@@ -135,6 +135,7 @@ Controller::reinitializeRequest(Client *client, Request *req) {
 	req->strip100ContinueHeader = false;
 	req->hasPragmaHeader = false;
 	req->host = NULL;
+	req->configCache = requestConfigCache;
 	req->bodyBytesBuffered = 0;
 	req->cacheKey = HashedStaticString();
 	req->cacheControl = NULL;
@@ -154,6 +155,7 @@ Controller::reinitializeRequest(Client *client, Request *req) {
 void
 Controller::deinitializeRequest(Client *client, Request *req) {
 	req->session.reset();
+	req->configCache.reset();
 
 	req->endStopwatchLog(&req->stopwatchLogs.getFromPool, false);
 	req->endStopwatchLog(&req->stopwatchLogs.bufferingRequestBody, false);
@@ -280,6 +282,15 @@ Controller::shouldDisconnectClientOnShutdown(Client *client) {
 bool
 Controller::supportsUpgrade(Client *client, Request *req) {
 	return true;
+}
+
+void
+Controller::onConfigChange(const ConfigKit::Store *oldConfig) {
+	ParentClass::onConfigChange(oldConfig);
+	mainConfigCache.update(config);
+	requestConfigCache.reset(new ControllerRequestConfigCache(config));
+	getContext()->defaultFileBufferedChannelConfig.bufferDir =
+		config["data_buffer_dir"].asString();
 }
 
 

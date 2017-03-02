@@ -1,6 +1,6 @@
 /*
  *  Phusion Passenger - https://www.phusionpassenger.com/
- *  Copyright (c) 2013-2015 Phusion Holding B.V.
+ *  Copyright (c) 2013-2017 Phusion Holding B.V.
  *
  *  "Passenger", "Phusion Passenger" and "Union Station" are registered
  *  trademarks of Phusion Holding B.V.
@@ -460,7 +460,7 @@ private:
 	void processConfig_getControllerConfig(Client *client, Request *req,
 		Controller *controller)
 	{
-		Json::Value config = controller->getConfigAsJson();
+		Json::Value config = controller->inspectConfig();
 		getContext()->libev->runLater(boost::bind(
 			&ApiServer::processConfig_controllerConfigGathered, this,
 			client, req, controller, config));
@@ -497,8 +497,13 @@ private:
 		unrefRequest(req, __FILE__, __LINE__);
 	}
 
-	static void configureController(Controller *controller, Json::Value json) {
-		controller->configure(json);
+	static void configureController(Controller *controller, Json::Value updates) {
+		vector<ConfigKit::Error> errors;
+		if (!controller->configure(updates, errors)) {
+			P_ERROR("Unable to apply configuration change to Core controller.\n"
+				"Configuration: " << updates.toStyledString() << "\n"
+				"Errors: " << toString(errors));
+		}
 	}
 
 	void processConfigBody(Client *client, Request *req) {
